@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>POCO · Master Data Dashboard</title>
+  <script src="xlsx.full.min.js"></script>
+
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --primary: #361F1A;
+    --header: #361F1A;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .app-header {
+    background: var(--header);
+    color: white;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 14px 24px 12px;
+  }
+
+  .header-title {
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .header-meta {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #cbd5e1;
+  }
+
+.header-meta-foot {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #2B4140;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+  .dashboard {
+    display: flex;
+    min-height: calc(100vh - 56px);
+  }
+
+  .sidebar {
+    width: 300px;
+    background: var(--card);
+    padding: 20px;
+    border-right: 1px solid var(--border);
+  }
+
+  .sidebar h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin: 18px 0 10px;
+  }
+
+  .sidebar label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 10px;
+    display: block;
+  }
+
+  .sidebar input,
+  .sidebar select,
+  .sidebar button {
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 6px;
+    font-size: 13px;
+    border-radius: 0px;
+    border: 1px solid var(--border);
+    background: white;
+  }
+
+  .sidebar button {
+    background: #622A3A;
+    color: white;
+    font-weight: 500;
+    border: none;
+    margin-top: 14px;
+    cursor: pointer;
+  }
+
+  .sidebar button.secondary {
+    background: #926C43;
+    color: white;
+    border: 1px solid var(--border);
+  }
+
+  .content {
+    flex: 1;
+    padding: 24px;
+    overflow: auto;
+  }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .kpi {
+    background: #FCE5BF;
+    color: #361F1A;
+    padding: 16px;
+    border-radius: 0px;
+    border: 1px solid var(--border);
+  }
+
+  .kpi h2 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 600;
+  }
+
+  .kpi p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .table-wrapper {
+  max-height: 130vh;
+  overflow: auto;
+  border-radius: 0px;
+  border: 1px solid var(--border);
+  background: white;
+  }
+
+  table {
+    width: 100%;
+    height: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 11px;
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    background: #361F1A;
+    color: white;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 10px 8px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  td {
+    padding: 8px;
+    border-bottom: 0px solid #f1f5f9;
+  }
+
+  tbody tr:nth-child(even) { background: #f9fafb; }
+  tbody tr:hover { background: #e0f2fe; }
+
+  .upload-box {
+    display: block;
+    border: 1px dashed #A23A1D;/*var(--border);*/
+    border-radius: 0px;
+    padding: 14px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .upload-box:hover {
+    border-color: var(--primary);
+    background: #f8fafc;
+  }
+
+  .intro-text {
+  font-size: 11px;
+  color: #6b7280; /* muted */
+  line-height: 1.45;
+  margin-bottom: 16px;
+}
+
+.intro-text code {
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 0px;
+  font-size: 10px;
+}
+
+.upload-box.loaded {
+  border: 1px solid #98A147;
+  background: #4F5622;
+  color: white;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+  .upload-box input { display: none; }
+  </style>
+</head>
+
+<div id="loadingOverlay" style="
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(255,255,255,0.9);
+display:none;
+align-items:center;
+justify-content:center;
+flex-direction:column;
+font-size:16px;
+font-weight:500;
+z-index:9999;
+">
+
+<div style="
+width:40px;
+height:40px;
+border:4px solid #e5e7eb;
+border-top:4px solid #361F1A;
+border-radius:50%;
+animation:spin 1s linear infinite;
+margin-bottom:10px;
+"></div>
+
+Processing files...
+
+</div>
+
+<body>
+
+<div class="app-header">
+  <div class="header-title">Plantation Data Tool - External</div>
+  <div class="header-meta">Joining POCO and Master Data to standardize plantation records</div>
+</div>
+
+<div class="dashboard">
+  <aside class="sidebar">
+
+    <h3>Files</h3>
+    <p class="intro-text">
+    Upload the required input files to generate the plantation dataset.
+    <br><br>
+
+    <b>POCO file</b><br>
+    • Sheet name must be <code>Export</code><br>
+    • Must contain the column: <code>Farmer code</code> and <code>Area (ha)</code>
+    <br><br>
+    </p>
+    <label class="upload-box" id="pocoBox">
+      <input type="file" id="pocoFile" accept=".xlsx,.xls" />
+      <span id="pocoText">Upload POCO (.xlsx)</span>
+    </label>
+
+    <p class="intro-text">
+    <b>Master Data file</b><br>
+    • Sheet name must be <code>Persons</code><br>
+    • Must contain the column <code>producer_code</code>
+    <br><br>
+    </p>
+
+    <label class="upload-box" id="masterBox">
+      <input type="file" id="masterFile" accept=".xlsx,.xls" />
+      <span id="masterText">Upload Master Data (.xlsx)</span>
+    </label>
+
+      <p class="intro-text">
+      Once both files are uploaded, click <code>Process Files</code> to generate the dataset preview and enable filtering and export options.
+      </p>
+    <button onclick="procesarArchivos()">Process Files</button>
+
+    <hr style="border: none; height: 2px; background-color: #622A3A;">
+
+    <h3>Filters</h3>
+    <p class="intro-text">
+        Use filters to narrow down the preview.
+        Leave empty to display all records
+    </p>
+    <label>Warehouse</label>
+    <select id="filtroWarehouse"></select>
+
+    <label>Buying Station</label>
+    <select id="filtroBuying"></select>
+
+    <hr style="border: none; height: 2px; background-color: #622A3A;">
+
+    <button class="" onclick="exportar()">Download .xlsx </button>
+
+    <button class="secondary" onclick="resetear()">Reset</button>
+
+    <hr style="border: none; height: 2px; background-color: #622A3A;">
+
+      <div class="header-meta-foot">
+    © 2026 Barry Callebaut Ecuador | Version 1.0.0   
+        </div>
+  </aside>
+
+  <main class="content">
+    <div class="kpis">
+      <div class="kpi">
+        <h2 id="kpiTotal">0</h2>
+        <p>Total Polygons</p>
+      </div>
+      <div class="kpi">
+        <h2 id="kpiFarmers">0</h2>
+        <p>Total Farmers</p>
+      </div>
+      <div class="kpi">
+        <h2 id="kpiArea">0</h2>
+        <p>Total Hectares</p>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table id="tablaPreview"></table>
+    </div>
+  </main>
+</div>
+
+<script>
+let pocoData = [];
+let masterData = [];
+let resultadoGlobal = [];
+
+document.getElementById("pocoFile").addEventListener("change", e => leerExcel(e, "poco"));
+document.getElementById("masterFile").addEventListener("change", e => leerExcel(e, "master"));
+
+function leerExcel(e, tipo) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = evt => {
+    const data = new Uint8Array(evt.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+
+    const sheetName = tipo === "poco" ? "Export" : "Persons";
+    const sheet = workbook.Sheets[sheetName];
+
+    if (!sheet) {
+      alert("Sheet not found: " + sheetName);
+      return;
+    }
+
+    const json = XLSX.utils.sheet_to_json(sheet);
+
+    if (tipo === "poco") {
+      pocoData = json;
+      document.getElementById("pocoBox").classList.add("loaded");
+      document.getElementById("pocoText").innerText = "Loaded " + file.name;
+    } else {
+      masterData = json;
+      document.getElementById("masterBox").classList.add("loaded");
+      document.getElementById("masterText").innerText = "Loaded " + file.name;
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function procesarArchivos() {
+
+  if (!pocoData.length || !masterData.length) {
+    alert("Please upload both files before processing.");
+    return;
+  }
+
+  const loader = document.getElementById("loadingOverlay");
+  loader.style.display = "flex";
+
+  setTimeout(() => {
+    procesar();
+    loader.style.display = "none";
+  }, 50);
+}
+
+function procesar() {
+  const masterMap = {};
+  masterData.forEach(p => {
+    masterMap[p["producer_code"]] = p;
+  });
+
+  resultadoGlobal = pocoData.map(poco => {
+    const persona = masterMap[poco["Farmer code"]] || {};
+    return {
+      "Warehouse": poco["Warehouse"] || "",
+      "Buyingstation": poco["Buyingstation"] || "",
+      "Farmer code": poco["Farmer code"] || "",
+      "Eudr flag": poco["Eudr flag"] || "",
+      "Area (ha)": Number(poco["Area (ha)"] || 0),
+      "Plantation code": extraerUltimoCodigo(poco["Plantation code"]),
+      "ID Card Number": persona["id_card_number"] || "",
+      "First Name": persona["firstname"] || "",
+      "Last Name": persona["lastname"] || "",
+      "Edad Plantation": ""
+    };
+  });
+
+  cargarFiltros();
+  render(resultadoGlobal);
+}
+
+function extraerUltimoCodigo(valor) {
+  if (!valor) return "";
+  const partes = String(valor).split("-");
+  return partes[partes.length - 1];
+}
+
+function cargarFiltros() {
+  const w = [...new Set(resultadoGlobal.map(r => r.Warehouse))];
+  const b = [...new Set(resultadoGlobal.map(r => r.Buyingstation))];
+
+  filtroWarehouse.innerHTML = '<option value="">All</option>' + w.map(x => `<option>${x}</option>`).join("");
+  filtroBuying.innerHTML = '<option value="">All</option>' + b.map(x => `<option>${x}</option>`).join("");
+}
+
+filtroWarehouse.onchange = filtro;
+filtroBuying.onchange = filtro;
+
+function filtro() {
+  let data = resultadoGlobal;
+  if (filtroWarehouse.value) data = data.filter(r => r.Warehouse === filtroWarehouse.value);
+  if (filtroBuying.value) data = data.filter(r => r.Buyingstation === filtroBuying.value);
+  render(data);
+}
+
+function render(data) {
+  if (!data.length) return;
+
+  const headers = Object.keys(data[0]);
+  let html = "<thead><tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr></thead><tbody>";
+  html += data.map(row => "<tr>" + headers.map(h => `<td>${row[h]}</td>`).join("") + "</tr>").join("");
+  html += "</tbody>";
+  tablaPreview.innerHTML = html;
+
+  kpiTotal.innerText = data.length;
+  kpiFarmers.innerText = new Set(data.map(r => r["Farmer code"])).size;
+  kpiArea.innerText = data.reduce((s, r) => s + r["Area (ha)"], 0).toFixed(2);
+}
+
+function exportar() {
+  const data = aplicarFiltrosActuales();
+  if (!data.length) {
+    alert("No hay datos para exportar.");
+    return;
+  }
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Plantation_Data");
+
+  const w = filtroWarehouse.value || "";
+  const b = filtroBuying.value || "";
+
+  let filtroNombre = "";
+  if (w && b) filtroNombre = `${w}-${b}`;
+  else if (w) filtroNombre = w;
+  else if (b) filtroNombre = b;
+
+  const now = new Date();
+  const fecha = now.toISOString().slice(0, 10);
+  const hora = now.toTimeString().slice(0, 5).replace(":", "-");
+
+  const base = "Plantation_Data";
+  const fileName = filtroNombre
+    ? `${base}_${limpiarNombre(filtroNombre)}_${fecha}_${hora}.xlsx`
+    : `${base}_${fecha}_${hora}.xlsx`;
+
+  XLSX.writeFile(wb, fileName);
+}
+
+function limpiarNombre(texto) {
+  return texto
+    .toString()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+function aplicarFiltrosActuales() {
+  let data = resultadoGlobal;
+
+  if (filtroWarehouse.value) {
+    data = data.filter(r => r.Warehouse === filtroWarehouse.value);
+  }
+
+  if (filtroBuying.value) {
+    data = data.filter(r => r.Buyingstation === filtroBuying.value);
+  }
+
+  return data;
+}
+
+function resetear() {
+  location.reload();
+}
+</script>
+
+</body>
+</html>
